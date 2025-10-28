@@ -11,15 +11,14 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Cache recent questions for 2 minutes
+// Cache map: question → { answer, timestamp }
 const answerCache = new Map();
 
-// GEMINI keys rotation
 const GEMINI_KEYS = [
   process.env.GEMINI_KEY_1,
   process.env.GEMINI_KEY_2,
   process.env.GEMINI_KEY_3,
-  process.env.GEMINI_KEY_4,
+  process.env.GEMINI_KEY_4
 ];
 let keyIndex = 0;
 function getNextKey() {
@@ -28,31 +27,48 @@ function getNextKey() {
   return key;
 }
 
-// Gemini Developer API endpoint
-const GEMINI_API_URL = "https://gemini.googleapis.com/v1/models/gemini-2.5-flash:generateContent";
+// Replace {modelId} with actual Gemini model (e.g., "gemini-2.5-flash")
+const MODEL_ID = "gemini-2.5-flash";
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:generateContent`;
 
 async function getGeminiAnswer(question) {
   const apiKey = getNextKey();
+  const body = {
+    contents: [
+      {
+        parts: [
+          {
+            text: "Answer all the questions provided the best you can without explaining. Just give the answer."
+          }
+        ]
+      }
+    ]
+  };
 
-  const response = await fetch(GEMINI_API_URL, {
+  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
+      "Content-Type": "application/json"
     },
-    body: JSON.stringify({ contents: question }),
+    body: JSON.stringify(body)
   });
 
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`);
+  }
 
   const data = await response.json();
-  return data.text || "No answer returned.";
+  // The response structure may vary; adjust as needed
+  const answer = data?.candidates?.[0]?.output?.text || data.text || "No answer returned.";
+  return answer;
 }
 
 app.post("/ask", async (req, res) => {
   try {
     const { question } = req.body;
-    if (!question) return res.status(400).json({ error: "No question provided" });
+    if (!question) {
+      return res.status(400).json({ error: "No question provided" });
+    }
 
     const cached = answerCache.get(question);
     if (cached && Date.now() - cached.timestamp < 2 * 60 * 1000) {
@@ -60,18 +76,20 @@ app.post("/ask", async (req, res) => {
     }
 
     const answer = await getGeminiAnswer(question);
-
     answerCache.set(question, { answer, timestamp: Date.now() });
-    res.json({ answer });
+    return res.json({ answer });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ answer: "Error fetching answer." });
+    return res.status(500).json({ answer: "Error fetching answer." });
   }
 });
 
-// Optional root route
+// Optional: root route
 app.get("/", (req, res) => {
-  res.send("AnswerForMe backend is running! Use POST /ask to get answers.");
+  res.send("AnswerForMe backend is running. Use POST /ask with JSON { question: ... }");
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
