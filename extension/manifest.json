@@ -3,21 +3,20 @@
   "name": "AnswerForMe",
   "version": "2.0",
   "description": "Highlight text, right-click, and get instant answers from AnswerForMe.",
-  "permissions": ["contextMenus", "activeTab", "scripting"],
-  "host_permissions": ["https://*/*", "http://*/*"],
+  "permissions": ["contextMenus", "scripting", "activeTab"],
   "background": {
     "service_worker": "background.js"
-  },
-  "icons": {
-    "16": "icon16.png",
-    "32": "icon32.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"]
     }
-  ]
+  ],
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
 }

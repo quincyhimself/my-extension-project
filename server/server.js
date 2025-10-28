@@ -11,10 +11,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Cache recent questions (2 min)
+// Cache recent questions for 2 minutes
 const answerCache = new Map();
 
-// Rotate GEMINI keys
 const GEMINI_KEYS = [
   process.env.GEMINI_KEY_1,
   process.env.GEMINI_KEY_2,
@@ -28,7 +27,6 @@ function getNextKey() {
   return key;
 }
 
-// Call Gemini API
 async function getGeminiAnswer(question) {
   const apiKey = getNextKey();
   const response = await fetch("https://api.gemini.com/answer", {
@@ -39,12 +37,12 @@ async function getGeminiAnswer(question) {
     },
     body: JSON.stringify({ question }),
   });
+
   if (!response.ok) throw new Error(`API error: ${response.status}`);
   const data = await response.json();
   return data.answer || "No answer available.";
 }
 
-// Endpoint
 app.post("/ask", async (req, res) => {
   try {
     const { question } = req.body;
@@ -63,6 +61,11 @@ app.post("/ask", async (req, res) => {
     console.error(err);
     res.status(500).json({ answer: "Error fetching answer." });
   }
+});
+
+// Optional root route for browser check
+app.get("/", (req, res) => {
+  res.send("AnswerForMe backend is running! Use POST /ask to get answers.");
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
