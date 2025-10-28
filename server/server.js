@@ -14,6 +14,7 @@ app.use(express.json());
 // Cache recent questions for 2 minutes
 const answerCache = new Map();
 
+// GEMINI keys rotation
 const GEMINI_KEYS = [
   process.env.GEMINI_KEY_1,
   process.env.GEMINI_KEY_2,
@@ -27,20 +28,25 @@ function getNextKey() {
   return key;
 }
 
+// Gemini Developer API endpoint
+const GEMINI_API_URL = "https://gemini.googleapis.com/v1/models/gemini-2.5-flash:generateContent";
+
 async function getGeminiAnswer(question) {
   const apiKey = getNextKey();
-  const response = await fetch("https://api.gemini.com/answer", {
+
+  const response = await fetch(GEMINI_API_URL, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ contents: question }),
   });
 
   if (!response.ok) throw new Error(`API error: ${response.status}`);
+
   const data = await response.json();
-  return data.answer || "No answer available.";
+  return data.text || "No answer returned.";
 }
 
 app.post("/ask", async (req, res) => {
@@ -63,7 +69,7 @@ app.post("/ask", async (req, res) => {
   }
 });
 
-// Optional root route for browser check
+// Optional root route
 app.get("/", (req, res) => {
   res.send("AnswerForMe backend is running! Use POST /ask to get answers.");
 });
